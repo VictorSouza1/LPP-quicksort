@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "mpi.h"
 #include <math.h>
-
+#include <string.h>
 
 void swap(int* arr, int i, int j) {
     int temp = arr[i];
@@ -18,6 +18,15 @@ int partition(int* arr, int pivot, int size) {
         }
     }
     return aux;
+}
+
+// faz o swift do array em o(n) trocar o approach para buffer cricular ou artimetica de ponteiros
+void removeElementsFromBeginingOfArray(int *arr, int num_el, int size) {
+    if(num_el == 0) return;
+    int l = 0;
+    for (int i = 0; i < num_el; i++ ) {
+        arr[i] = arr[size-1-i];
+    }
 }
 
 int main(argc, argv)
@@ -47,9 +56,9 @@ char **argv;
     }
 
     // sending slices of the array to each proccess
+    MPI_Barrier(MPI_COMM_WORLD);
     MPI_Bcast(&array_size , 1 , MPI_INT , 0 , MPI_COMM_WORLD);
     //printf("Sou o processo %d e recebi o tamanho %d do array\n", rank, array_size);
-    MPI_Barrier(MPI_COMM_WORLD);
     slice_size = array_size / size;
     int slice[array_size];
     int recive_slice[array_size];
@@ -79,20 +88,19 @@ char **argv;
             // Escolha do pivot aleatoria (aqui pegamos o primeiro elemento do vetor), problema, e se o vetor tiver vazio ?????
             pivot = slice[0]; 
         }
+        MPI_Barrier( MPI_COMM_WORLD);
         MPI_Bcast(&pivot , 1 , MPI_INT , 0 , MPI_COMM_ITERATION);
         //printf("Iteracao: %d  | Sou o processo com rank global %d, e estou no comunicador de iteracao %d de tamanho %d e com o rank de iteracao %d e recebi o pivot: %d \n", step, rank, iteration_comm_id, iteration_size, iteration_rank, pivot);
 
-        MPI_Barrier( MPI_COMM_WORLD);
         
         // Cada processo faz a divisao do seu array entre maiores e menores que pivot, e armazena em division o local dessa separacao
         division = partition(slice, pivot, slice_size);
-        for(int i = 0; i < slice_size; i++){
-            printf("Processo %d, slice[%d]=%d \n", rank, i ,slice[i]);
-        }
-        printf("Processo %d Division = %d", rank, division);
-        printf("\n");
+        // for(int i = 0; i < slice_size; i++){
+        //     printf("Processo %d, slice[%d]=%d \n", rank, i ,slice[i]);
+        // }
+        // printf("Processo %d Division = %d", rank, division);
+        // printf("\n");
 
-        MPI_Barrier( MPI_COMM_WORLD);
 
         // Descobrir o processo para parear
         if(iteration_rank < iteration_size/2) {
@@ -100,7 +108,7 @@ char **argv;
         } else {
             partner = iteration_rank - iteration_size/2;
         }
-        printf("Sou o processo %d pareado com o processo %d\n", rank, partner);
+        //printf("Sou o processo %d pareado com o processo %d\n", rank, partner);
 
         // Processos parceiros trocam partes dos seus arrays
         if (iteration_rank < iteration_size/2) {
@@ -111,11 +119,39 @@ char **argv;
             MPI_Send(slice, division, MPI_INT , partner, 0, MPI_COMM_ITERATION);
         }
 
+
         int recive_slice_size;
         MPI_Get_count(&status, MPI_INT, &recive_slice_size);
-        printf("Sou o processo %d e recebi um recive_slice de tamanho %d com primeiro elemento %d\n", rank, recive_slice_size, recive_slice[0]);
+
+        // for(int i = 0; i < recive_slice_size; i++){
+        //     printf("Debug Processo %d, slice_recived[%d]=%d \n", rank, i ,recive_slice[i]);
+        // }
+
+        // Removendo partes nao mais utilizadas do array slice de cada processo
+        // E adicionando novos elementos recebidos pelos pares
+        if (iteration_rank < iteration_size/2) {
+            for(int i =0; i < recive_slice_size; i++) {
+                slice[division+i] = recive_slice[i];
+            }
+            slice_size = division+recive_slice_size;
+        } else {
+            for(int i =0; i < recive_slice_size; i++) {
+                slice[slice_size+i] = recive_slice[i];
+            }
+            slice_size = slice_size + recive_slice_size;
+            removeElementsFromBeginingOfArray(slice, division, slice_size); //TODO melhorar a logica de remove usando buffer circular
+            slice_size = slice_size - division;
+        }
+
         
 
+
+        for(int i = 0; i < slice_size; i++){
+            printf("Final Step = %d | Processo %d, slice[%d]=%d \n", step, rank, i ,slice[i]);
+        }
+  
+        
+        MPI_Comm_free(&MPI_COMM_ITERATION);
         MPI_Barrier(MPI_COMM_WORLD);
     }
 
