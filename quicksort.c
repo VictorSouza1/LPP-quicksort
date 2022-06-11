@@ -9,10 +9,9 @@ int main(argc, argv)
 int argc;
 char **argv;
 {
-    // initializing control variables
+    // Inicialzando variaveis de controle
     int slice_size, num_steps, array_size, pivot, division, partner;
     int* array = (int*)malloc(sizeof(int) * 160);
-    //int array[160];
 
     // Initialize MPI and get rank and size
     MPI_Status status;
@@ -23,67 +22,63 @@ char **argv;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    // O processo zero vai ser o master e vai controlar cada passo do algo
+    // O processo zero vai ser o master e vai controlar inicializar e enviar o array para os outros participantes
     if (rank == 0)
     {
-        // initializing the array
-        array_size = 160;
-        // int array[40] = {13, 38, 16, 17, 39, 11, 37, 12, 21, 19, 24, 36, 34, 8, 35, 25, 9, 30, 5, 1, 32, 31, 22, 6, 40, 28, 3, 20, 2, 18, 14, 7, 33, 26, 23, 29, 15, 4, 27, 10};
+        // inicializando o array
+        array_size = 160; // Mudar aqui o numero de elementos do array
         for(int i=0;i<array_size;i++)
-            array[i]=rand()%100;  //Generate number between 0 to 99
+            array[i]=rand()%100;  //Se o array for muito grante pode aumentar esse nr
     }
 
-    // sending slices of the array to each proccess
     MPI_Barrier(MPI_COMM_WORLD);
+    // O processo 0 manda o tamanho de cada slice para todos os processos
     MPI_Bcast(&array_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    // printf("Sou o processo %d e recebi o tamanho %d do array\n", rank, array_size);
     slice_size = array_size / size;
+    //Cada array inicializa seu slie
     int* slice = (int*)malloc(sizeof(int) * array_size);
-    //int slice[array_size];
 
-    int* recive_slice = (int*)malloc(sizeof(int) * array_size);
-    //int recive_slice[array_size];
+    int* recive_slice = (int*)malloc(sizeof(int) * array_size); // Esse array vai ser util no futuro
 
+    // O processo 0 envia os slices para os processo
     MPI_Scatter(array, slice_size, MPI_INT, slice, slice_size, MPI_INT, 0, MPI_COMM_WORLD);
-    // printf("Sou o processo %d e estou recebendo o array com o primeiro elemento %d do scatter\n", rank, slice[0]);
-    //  o numero de passos do algoritimo vai ser log(threads) na base 2
+
+    //  Calculando o numero de passos do algoritmo (log(processos) na base 2)
     num_steps = log10(size) / log10(2);
-    // Fim da fase de inicializacao, agora vem a parte que sera repetida
+    // Fim da fase de inicializacao
 
     // --------------------------------------------------- // ----------------------------------------------------------
 
     MPI_Barrier(MPI_COMM_WORLD);
     for (int step = 0; step < num_steps; step++)
     {
-        // Criando novo(s) cominicador(es) separando cada processo dependo da iteracao que estamos
+        // Criando novo(s) cominicador(es) separando cada processo em seu devido comunicador
+        // dependo da iteracao que estamos
         int iteration_rank, iteration_size;
+        // Cada processo descobre qual comunicador ele pertence
         int iteration_comm_id = pow(2, step) * rank / size;
         MPI_Comm MPI_COMM_ITERATION;
+        // Aqui e como o mpi lida com essa criacao dinamica de comunicadores, splitando um comunicador em varios
         MPI_Comm_split(MPI_COMM_WORLD, iteration_comm_id, rank, &MPI_COMM_ITERATION);
         MPI_Comm_rank(MPI_COMM_ITERATION, &iteration_rank);
         MPI_Comm_size(MPI_COMM_ITERATION, &iteration_size);
 
-        // printf("Sou o processo com rank global %d, estou na iteracao %d e estou no comunicador de iteralcao %d de tamanho %d e com o rank de iteracao %d \n", rank, step, iteration_comm_id, iteration_size, iteration_rank);
 
-        // Cada processo com o rank zero manda o pivot para todos o processos desse novo Comunicador
+        // Cada processo com o rank zero no seu comunicador manda o pivot para todos o processos desse novo Comunicador
         if (iteration_rank == 0)
         {
-            // Escolha do pivot aleatoria (aqui pegamos o primeiro elemento do vetor), problema, e se o vetor tiver vazio ?????
+            // Escolha do pivot aleatoria (aqui pegamos o primeiro elemento do vetor), problema, e se o vetor tiver vazio ?????, nao tratei isso
             pivot = slice[0];
         }
         MPI_Barrier(MPI_COMM_WORLD);
+
+        // O processo 0 manda o pivot pros processos do seu comunicador
         MPI_Bcast(&pivot, 1, MPI_INT, 0, MPI_COMM_ITERATION);
-        // printf("Iteracao: %d  | Sou o processo com rank global %d, e estou no comunicador de iteracao %d de tamanho %d e com o rank de iteracao %d e recebi o pivot: %d \n", step, rank, iteration_comm_id, iteration_size, iteration_rank, pivot);
 
-        // Cada processo faz a divisao do seu array entre maiores e menores que pivot, e armazena em division o local dessa separacao
+        // Cada processo faz a particao do seu array entre maiores e menores que pivot, e armazena em division o local dessa separacao
         division = partition(slice, pivot, slice_size);
-        // for(int i = 0; i < slice_size; i++){
-        //     printf("Processo %d, slice[%d]=%d \n", rank, i ,slice[i]);
-        // }
-        // printf("Processo %d Division = %d", rank, division);
-        // printf("\n");
 
-        // Descobrir o processo para parear
+        // Descobrir o processo para parear (essa parte fica facil com a diviao de comunicadores feita)
         if (iteration_rank < iteration_size / 2)
         {
             partner = iteration_size / 2 + iteration_rank;
@@ -92,7 +87,6 @@ char **argv;
         {
             partner = iteration_rank - iteration_size / 2;
         }
-        // printf("Sou o processo %d pareado com o processo %d\n", rank, partner);
 
         // Processos parceiros trocam partes dos seus arrays
         if (iteration_rank < iteration_size / 2)
@@ -107,14 +101,13 @@ char **argv;
         }
 
         int recive_slice_size;
+        // Rotina mpi para pegar o tamanho do array recevido no MPI_Recv anterior 
+        //(para evitar de fazer uma comuncacao amais so pra mandar o tamanho do array)
         MPI_Get_count(&status, MPI_INT, &recive_slice_size);
 
-        // for(int i = 0; i < recive_slice_size; i++){
-        //     printf("Debug Processo %d, slice_recived[%d]=%d \n", rank, i ,recive_slice[i]);
-        // }
 
-        // Removendo partes nao mais utilizadas do array slice de cada processo
-        // E adicionando novos elementos recebidos pelos pares
+        // Processos da primeira metade vao descartar os elementtos maiores do que o pivot e adicionar
+        // Os ementso recebidos pelo seu par
         if (iteration_rank < iteration_size / 2)
         {
             for (int i = 0; i < recive_slice_size; i++)
@@ -123,24 +116,18 @@ char **argv;
             }
             slice_size = division + recive_slice_size;
         }
-        else
+        else //Processos da segunda metade vao descartar os elementos menores do que o pivot e adicionar o elementos recebidos
         {
             for (int i = 0; i < recive_slice_size; i++)
             {
                 slice[slice_size + i] = recive_slice[i];
             }
             slice_size = slice_size + recive_slice_size;
-            // TODO melhorar a logica de remove usando buffer circular
             slice+=division;
-            //removeElementsFromBeginingOfArray(slice, division, slice_size);
             slice_size = slice_size - division;
         }
 
-        for (int i = 0; i < slice_size; i++)
-        {
-            printf("Final Step = %d | Processo %d, slice[%d]=%d \n", step, rank, i, slice[i]);
-        }
-
+        // Destroy os comunicadores criados para esse step
         MPI_Comm_free(&MPI_COMM_ITERATION);
         MPI_Barrier(MPI_COMM_WORLD);
     }
@@ -149,11 +136,10 @@ char **argv;
     quicksort_sequential(slice, 0, slice_size-1);
 
     // Fase de recuperar todos os arrays de cada processo e juntar no master
+    // Utilizando o MPI_Gatherv para juntar arrays de diferentes sizes
     if(rank == 0) {
         int* sizes_of_slices = (int*)malloc(sizeof(int) * size);
-        //int sizes_of_slices[size];
         int* displacments = (int*)malloc(sizeof(int) * size);
-        //int displacments[size];
         MPI_Gather(&slice_size, 1, MPI_INT, sizes_of_slices, 1, MPI_INT, 0, MPI_COMM_WORLD);
         MPI_Barrier(MPI_COMM_WORLD);
         calculateDisplacmentArray(sizes_of_slices, displacments, size);
@@ -169,7 +155,7 @@ char **argv;
 
 
     printf("\n");
-
+    // Printa o array ordenado
     if (rank == 0)
     {
         for (int i = 0; i < array_size; i++)

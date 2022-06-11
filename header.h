@@ -24,18 +24,6 @@ int partition(int *arr, int pivot, int size)
     return aux;
 }
 
-// faz o swift do array em o(n) trocar o approach para buffer cricular ou artimetica de ponteiros
-void removeElementsFromBeginingOfArray(int *arr, int num_el, int size)
-{
-    if (num_el == 0)
-        return;
-    int l = 0;
-    for (int i = 0; i < num_el; i++)
-    {
-        arr[i] = arr[size - 1 - i];
-    }
-}
-
 
 void calculateDisplacmentArray(int *sizes, int *displacments, int size)
 {
