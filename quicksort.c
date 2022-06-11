@@ -11,7 +11,8 @@ char **argv;
 {
     // initializing control variables
     int slice_size, num_steps, array_size, pivot, division, partner;
-    int array[160];
+    int* array = (int*)malloc(sizeof(int) * 160);
+    //int array[160];
 
     // Initialize MPI and get rank and size
     MPI_Status status;
@@ -28,7 +29,6 @@ char **argv;
         // initializing the array
         array_size = 160;
         // int array[40] = {13, 38, 16, 17, 39, 11, 37, 12, 21, 19, 24, 36, 34, 8, 35, 25, 9, 30, 5, 1, 32, 31, 22, 6, 40, 28, 3, 20, 2, 18, 14, 7, 33, 26, 23, 29, 15, 4, 27, 10};
-        //int array[16] = {10, 118, 146, 120, 27, 5, 58, 8, 12, 6, 137, 112, 119, 13, 43, 84, 67, 4, 115, 31, 19, 128, 113, 24, 86, 46, 77, 104, 61, 121, 106, 101, 143, 133, 102, 40, 80, 62, 78, 72, 44, 36, 28, 158, 49, 32, 108, 91, 94, 99, 53, 22, 65, 92, 140, 60, 25, 42, 134, 79, 114, 95, 57, 93, 131, 123, 139, 132, 153, 144, 38, 160, 23, 56, 97, 135, 59, 107, 149, 82, 45, 136, 141, 124, 21, 157, 148, 66, 145, 14, 88, 155, 129, 151, 89, 138, 122, 69, 50, 105, 156, 68, 100, 15, 159, 18, 39, 34, 20, 74, 110, 51, 116, 3, 41, 1, 33, 111, 71, 126, 75, 152, 48, 117, 63, 2, 16, 70, 142, 55, 85, 35, 9, 103, 64, 83, 26, 7, 130, 76, 47, 73, 11, 125, 154, 96, 109, 54, 29, 150, 98, 81, 87, 30, 127, 17, 37, 147, 90, 52};
         for(int i=0;i<array_size;i++)
             array[i]=rand()%100;  //Generate number between 0 to 99
     }
@@ -38,8 +38,12 @@ char **argv;
     MPI_Bcast(&array_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
     // printf("Sou o processo %d e recebi o tamanho %d do array\n", rank, array_size);
     slice_size = array_size / size;
-    int slice[array_size];
-    int recive_slice[array_size];
+    int* slice = (int*)malloc(sizeof(int) * array_size);
+    //int slice[array_size];
+
+    int* recive_slice = (int*)malloc(sizeof(int) * array_size);
+    //int recive_slice[array_size];
+
     MPI_Scatter(array, slice_size, MPI_INT, slice, slice_size, MPI_INT, 0, MPI_COMM_WORLD);
     // printf("Sou o processo %d e estou recebendo o array com o primeiro elemento %d do scatter\n", rank, slice[0]);
     //  o numero de passos do algoritimo vai ser log(threads) na base 2
@@ -127,7 +131,8 @@ char **argv;
             }
             slice_size = slice_size + recive_slice_size;
             // TODO melhorar a logica de remove usando buffer circular
-            removeElementsFromBeginingOfArray(slice, division, slice_size);
+            slice+=division;
+            //removeElementsFromBeginingOfArray(slice, division, slice_size);
             slice_size = slice_size - division;
         }
 
@@ -145,8 +150,10 @@ char **argv;
 
     // Fase de recuperar todos os arrays de cada processo e juntar no master
     if(rank == 0) {
-        int sizes_of_slices[size];
-        int displacments[size];
+        int* sizes_of_slices = (int*)malloc(sizeof(int) * size);
+        //int sizes_of_slices[size];
+        int* displacments = (int*)malloc(sizeof(int) * size);
+        //int displacments[size];
         MPI_Gather(&slice_size, 1, MPI_INT, sizes_of_slices, 1, MPI_INT, 0, MPI_COMM_WORLD);
         MPI_Barrier(MPI_COMM_WORLD);
         calculateDisplacmentArray(sizes_of_slices, displacments, size);
