@@ -11,7 +11,8 @@ char **argv;
 {
     // Inicialzando variaveis de controle
     int slice_size, num_steps, array_size, pivot, division, partner;
-    int* array = (int*)malloc(sizeof(int) * 160);
+    double tempo_inicial, tempo_final;
+    int* array = (int*)malloc(sizeof(int) * 1048576);
 
     // Initialize MPI and get rank and size
     MPI_Status status;
@@ -26,12 +27,14 @@ char **argv;
     if (rank == 0)
     {
         // inicializando o array
-        array_size = 160; // Mudar aqui o numero de elementos do array
+        array_size = 1048576; // Mudar aqui o numero de elementos do array
         for(int i=0;i<array_size;i++)
-            array[i]=rand()%100;  //Se o array for muito grante pode aumentar esse nr
+            array[i]=rand()%100000;  //Se o array for muito grante pode aumentar esse nr
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
+
+    tempo_inicial = MPI_Wtime();
     // O processo 0 manda o tamanho de cada slice para todos os processos
     MPI_Bcast(&array_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
     slice_size = array_size / size;
@@ -47,7 +50,7 @@ char **argv;
     num_steps = log10(size) / log10(2);
     // Fim da fase de inicializacao
 
-    // --------------------------------------------------- // ----------------------------------------------------------
+    // --------------------------------------------------- // ----------------------------------------------------------    
 
     MPI_Barrier(MPI_COMM_WORLD);
     for (int step = 0; step < num_steps; step++)
@@ -152,17 +155,19 @@ char **argv;
         MPI_Gatherv(slice, slice_size, MPI_INT, array, NULL, NULL, MPI_INT, 0, MPI_COMM_WORLD);
     }
 
+    tempo_final = MPI_Wtime();
 
 
     printf("\n");
     // Printa o array ordenado
     if (rank == 0)
     {
-        for (int i = 0; i < array_size; i++)
-        {
+        printf("Levou %lf\n", tempo_final - tempo_inicial);
+        // for (int i = 0; i < array_size; i++)
+        // {
 
-            printf("%d,", array[i]);
-        }
+        //     printf("%d,", array[i]);
+        // }
     }
 
 

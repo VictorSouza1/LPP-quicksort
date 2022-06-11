@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <time.h>
+#include <stdlib.h>
 
 void swap(int *arr, int i, int j)
 {
@@ -40,15 +42,29 @@ void quicksort(int *arr, int left, int right)
 void main()
 {
 
-    int arr[6] = { 5, 3, 1, 6, 4, 2 };
-    int size = 6;
+    clock_t start, end;
+    double cpu_time_used;
 
-    quicksort(arr, 0, 5);
 
+    int* array = (int*)malloc(sizeof(int) * 1048576);
+    int array_size = 1048576;
+    for(int i=0;i<array_size;i++)
+        array[i]=rand()%100000; 
+
+    start = clock();
+    quicksort(array, 0, 1048575);
+    end = clock();
+
+    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+
+
+
+
+    printf("The elapsed time is %lf seconds", cpu_time_used);
 
     printf("[");
     for(int i = 0; i < 6; i++){
-        printf("%d", arr[i]);
+        printf("%d", array[i]);
         if(i != 5) {
             printf(",");
         }
