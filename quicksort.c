@@ -2,49 +2,8 @@
 #include "mpi.h"
 #include <math.h>
 #include <string.h>
+#include <stdlib.h>
 #include "header.h"
-
-void swap(int *arr, int i, int j)
-{
-    int temp = arr[i];
-    arr[i] = arr[j];
-    arr[j] = temp;
-}
-
-int partition(int *arr, int pivot, int size)
-{
-    int aux = 0;
-    for (int i = 0; i < size; i++)
-    {
-        if (arr[i] <= pivot)
-        {
-            swap(arr, i, aux);
-            aux++;
-        }
-    }
-    return aux;
-}
-
-// faz o swift do array em o(n) trocar o approach para buffer cricular ou artimetica de ponteiros
-void removeElementsFromBeginingOfArray(int *arr, int num_el, int size)
-{
-    if (num_el == 0)
-        return;
-    int l = 0;
-    for (int i = 0; i < num_el; i++)
-    {
-        arr[i] = arr[size - 1 - i];
-    }
-}
-
-void calculateDisplacmentArray(int *sizes, int *displacments, int size)
-{
-    int sum = 0;
-    for(int i = 0; i<size; i++) {
-        displacments[i] = sum;
-        sum+=sizes[i];
-    }
-}
 
 int main(argc, argv)
 int argc;
@@ -52,7 +11,7 @@ char **argv;
 {
     // initializing control variables
     int slice_size, num_steps, array_size, pivot, division, partner;
-    int array[16];
+    int array[160];
 
     // Initialize MPI and get rank and size
     MPI_Status status;
@@ -67,9 +26,11 @@ char **argv;
     if (rank == 0)
     {
         // initializing the array
-        array_size = 16;
+        array_size = 160;
         // int array[40] = {13, 38, 16, 17, 39, 11, 37, 12, 21, 19, 24, 36, 34, 8, 35, 25, 9, 30, 5, 1, 32, 31, 22, 6, 40, 28, 3, 20, 2, 18, 14, 7, 33, 26, 23, 29, 15, 4, 27, 10};
-        int array[16] = {5, 11, 19, 2, 8, 17, 12, 16, 10, 4, 25, 13, 18, 15, 3, 1};
+        //int array[16] = {10, 118, 146, 120, 27, 5, 58, 8, 12, 6, 137, 112, 119, 13, 43, 84, 67, 4, 115, 31, 19, 128, 113, 24, 86, 46, 77, 104, 61, 121, 106, 101, 143, 133, 102, 40, 80, 62, 78, 72, 44, 36, 28, 158, 49, 32, 108, 91, 94, 99, 53, 22, 65, 92, 140, 60, 25, 42, 134, 79, 114, 95, 57, 93, 131, 123, 139, 132, 153, 144, 38, 160, 23, 56, 97, 135, 59, 107, 149, 82, 45, 136, 141, 124, 21, 157, 148, 66, 145, 14, 88, 155, 129, 151, 89, 138, 122, 69, 50, 105, 156, 68, 100, 15, 159, 18, 39, 34, 20, 74, 110, 51, 116, 3, 41, 1, 33, 111, 71, 126, 75, 152, 48, 117, 63, 2, 16, 70, 142, 55, 85, 35, 9, 103, 64, 83, 26, 7, 130, 76, 47, 73, 11, 125, 154, 96, 109, 54, 29, 150, 98, 81, 87, 30, 127, 17, 37, 147, 90, 52};
+        for(int i=0;i<array_size;i++)
+            array[i]=rand()%100;  //Generate number between 0 to 99
     }
 
     // sending slices of the array to each proccess
@@ -179,8 +140,8 @@ char **argv;
         MPI_Barrier(MPI_COMM_WORLD);
     }
 
-
-    quicksort_sequential(slice, 0, slice_size);
+    // Cada processo performa um quicksort sequencial em cada um de seus slices
+    quicksort_sequential(slice, 0, slice_size-1);
 
     // Fase de recuperar todos os arrays de cada processo e juntar no master
     if(rank == 0) {
@@ -210,6 +171,8 @@ char **argv;
             printf("%d,", array[i]);
         }
     }
+
+
 
     MPI_Finalize();
     return 0;
